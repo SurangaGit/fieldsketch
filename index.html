@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0e1512">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Field Sketch">
+<title>Field Sketch — Rubber</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --bg:#0e1512; --panel:#14201c; --panel2:#1b2b26; --line:#26413a;
+  --ink:#eaf3f0; --dim:#9db5ad; --teal:#2fb3a3; --teal-d:#1f6f6b;
+  --amber:#ffb64d; --red:#ff6b6b; --ok:#43d17a;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+#map{position:absolute;inset:0;background:#0b100e}
+.leaflet-container{background:#0b100e}
+
+/* top bar */
+#top{position:absolute;top:0;left:0;right:0;z-index:1000;
+  display:flex;gap:6px;align-items:center;padding:8px;
+  background:linear-gradient(#0e1512ee,#0e1512aa 70%,#0e151200);pointer-events:none}
+#top>*{pointer-events:auto}
+.brand{font-weight:700;font-size:15px;letter-spacing:.2px;color:var(--ink);
+  padding:6px 4px;white-space:nowrap}
+.brand small{color:var(--teal);font-weight:600}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{background:none;border:0;color:var(--dim);font-size:12px;padding:7px 9px;font-weight:600}
+.seg button.on{background:var(--teal-d);color:#fff}
+select,input,button{font-family:inherit}
+.yearsel{margin-left:auto;background:var(--panel);border:1px solid var(--line);
+  color:var(--ink);border-radius:10px;padding:7px 8px;font-size:12px;font-weight:600}
+
+/* bottom sheet */
+#sheet{position:absolute;left:0;right:0;bottom:0;z-index:1000;
+  background:var(--panel);border-top:1px solid var(--line);
+  border-radius:16px 16px 0 0;padding:10px 12px 14px;
+  box-shadow:0 -8px 30px #0008;transition:transform .25s ease;max-height:62vh;overflow-y:auto}
+#sheet.collapsed{transform:translateY(calc(100% - 46px))}
+.grip{width:40px;height:4px;border-radius:3px;background:var(--line);margin:0 auto 8px}
+.row{display:flex;gap:8px;align-items:center;margin:6px 0}
+.row.wrap{flex-wrap:wrap}
+label.lab{font-size:11px;color:var(--dim);min-width:48px}
+.arp{display:flex;gap:6px;flex:1}
+.arp .fld{flex:1;display:flex;flex-direction:column;align-items:center;
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:4px 0}
+.arp .fld input{width:100%;background:none;border:0;color:var(--ink);
+  text-align:center;font-size:20px;font-weight:700;outline:none}
+.arp .fld span{font-size:10px;color:var(--dim);letter-spacing:1px}
+.sbin{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+  border-radius:10px;padding:9px 10px;font-size:15px;font-weight:600;outline:none}
+.btn{border:0;border-radius:11px;padding:11px 13px;font-size:14px;font-weight:700;
+  color:#06110e;background:var(--teal)}
+.btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+.btn.amber{background:var(--amber)}
+.btn.red{background:var(--red);color:#fff}
+.btn:disabled{opacity:.4}
+.btn.big{flex:1}
+.readout{display:flex;justify-content:space-between;gap:10px;font-size:12px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0}
+.readout b{color:var(--teal);font-variant-numeric:tabular-nums}
+.readout .warn b{color:var(--amber)}
+.hint{font-size:11px;color:var(--dim);line-height:1.35;margin:2px 0 0}
+.fab{position:absolute;right:12px;z-index:1000;width:50px;height:50px;border-radius:14px;
+  border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  font-size:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px #0007;transition:bottom .25s ease}
+.fab i{font-style:normal;font-size:9px;color:var(--dim);margin-top:-2px}
+/* fabs sit just above the sheet; JS updates --sheetH */
+#gps{bottom:calc(var(--sheetH,300px) + 116px)}
+#undo{bottom:calc(var(--sheetH,300px) + 60px)}
+#sheetTgl{bottom:calc(var(--sheetH,300px) + 4px);width:50px;height:50px}
+.leaflet-control-zoom{display:none}
+.toast{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:1200;
+  background:#0c1614ee;border:1px solid var(--line);color:var(--ink);
+  padding:9px 14px;border-radius:12px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:88%}
+.toast.show{opacity:1}
+.mk{background:var(--teal);width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0006}
+.lblbadge{background:#0c1614dd;border:1px solid var(--teal);color:#fff;font-weight:700;
+  font-size:12px;padding:2px 6px;border-radius:7px;white-space:nowrap;transform:translate(-50%,-50%)}
+details.help{margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
+details.help summary{font-size:12px;color:var(--teal);font-weight:600;cursor:pointer;list-style:none}
+details.help p{font-size:11px;color:var(--dim);line-height:1.5;margin:6px 0}
+
+/* ---- licence gate ---- */
+#gate{position:fixed;inset:0;z-index:5000;background:radial-gradient(120% 90% at 50% 0%,#12201c,#0b1210);
+  display:flex;align-items:center;justify-content:center;padding:18px}
+#gate.hide{display:none}
+.gatecard{width:100%;max-width:400px;background:var(--panel);border:1px solid var(--line);
+  border-radius:18px;padding:22px 20px;box-shadow:0 20px 60px #000a}
+.gtitle{font-size:22px;font-weight:800}.gtitle small{color:var(--teal)}
+.gsub{font-size:12px;color:var(--dim);margin:4px 0 16px}
+.gmsg{font-size:13px;color:var(--ink);background:var(--panel2);border:1px solid var(--line);
+  border-radius:10px;padding:11px 12px;line-height:1.5}
+.gmsg.err{border-color:#7a3b3b;color:#ffb4b4}
+.gmsg.ok{border-color:#2f7a58;color:#b7f0cf}
+.glab{font-size:11px;color:var(--dim);margin:14px 0 5px;display:block}
+#keyIn{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+  border-radius:10px;padding:10px;font-size:12px;font-family:ui-monospace,monospace;resize:vertical;outline:none}
+.gbtn{width:100%;margin-top:10px;border:0;border-radius:11px;padding:12px;font-size:15px;font-weight:700;
+  color:#06110e;background:var(--teal)}
+.gbtn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+.gor{text-align:center;color:var(--dim);font-size:11px;margin:10px 0 2px}
+.devid{font-family:ui-monospace,monospace;font-size:13px;color:var(--teal);background:var(--panel2);
+  border:1px dashed var(--line);border-radius:10px;padding:10px;word-break:break-all;margin-top:4px}
+.gfoot{margin-top:16px;font-size:10px;color:var(--dim);text-align:center}
+</style>
+</head>
+<body>
+
+<!-- ===================== LICENSE GATE ===================== -->
+<div id="gate">
+  <div class="gatecard">
+    <div class="gtitle">Field&nbsp;Sketch <small>රබර්</small></div>
+    <div class="gsub">Licensed field survey tool — Suranga (V.R.S. Vithana)</div>
+    <div id="gateBody">
+      <div class="gmsg" id="gmsg">Checking licence…</div>
+      <div id="gateInput" style="display:none">
+        <label class="glab">Licence Key</label>
+        <textarea id="keyIn" rows="3" placeholder="paste your licence key here"></textarea>
+        <button class="gbtn" id="actBtn">Activate</button>
+        <div class="gor">— or —</div>
+        <button class="gbtn ghost" id="trialBtn">Start 3-day free trial</button>
+      </div>
+      <div id="gateDevice" style="display:none">
+        <div class="glab">Your device ID (send this to get a key):</div>
+        <div class="devid" id="devidBox">—</div>
+        <button class="gbtn ghost" id="copyDev">Copy device ID</button>
+      </div>
+    </div>
+    <div class="gfoot">© Suranga · Kotiyakumbura · licence required</div>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<div id="top">
+  <div class="brand">Field&nbsp;Sketch <small>රබර්</small></div>
+  <div class="seg" id="modeSeg">
+    <button data-m="pan" class="on">🖐 Pan</button>
+    <button data-m="draw">✏️ Draw</button>
+    <button data-m="insert">➕ Add</button>
+  </div>
+  <select class="yearsel" id="yearSel" title="Imagery year"></select>
+</div>
+
+<button class="fab lbl" id="gps" title="My location">📍</button>
+<button class="fab lbl" id="undo" title="Undo last point">⤺<i>Undo</i></button>
+<button class="fab lbl" id="sheetTgl" title="Show / hide panel">▾</button>
+
+<div id="sheet">
+  <div class="grip" id="grip"></div>
+  <div class="row">
+    <label class="lab">SB / No.</label>
+    <input class="sbin" id="sbKey" placeholder="e.g. KG73925" autocomplete="off">
+  </div>
+  <div class="row">
+    <label class="lab">Extent</label>
+    <div class="arp">
+      <div class="fld"><input id="A" type="number" inputmode="numeric" value="0" min="0"><span>ACRE</span></div>
+      <div class="fld"><input id="R" type="number" inputmode="numeric" value="0" min="0" max="3"><span>ROOD</span></div>
+      <div class="fld"><input id="P" type="number" inputmode="decimal" value="0" min="0"><span>PERCH</span></div>
+    </div>
+  </div>
+  <div class="readout" id="readout">
+    <span>Drawn: <b id="drawnArea">0A 0R 0.0P</b></span>
+    <span class="warn">Target: <b id="tgtArea">0A 0R 0.0P</b></span>
+  </div>
+  <div class="row">
+    <button class="btn big amber" id="fitBtn" disabled>⤢ Fit to Extent</button>
+    <button class="btn big" id="addBtn" disabled>➕ Save Land</button>
+    <button class="btn ghost" id="clrBtn">Clear</button>
+  </div>
+  <div class="row wrap" style="gap:6px">
+    <button class="btn ghost" id="kmlBtn" style="flex:1">⬇️ Export KML (<span id="savedCnt">0</span> lands)</button>
+    <button class="btn ghost" id="snapTgl" style="flex:0 0 auto">🧲 Snap: ON</button>
+    <button class="btn ghost red" id="delAllBtn" style="flex:0 0 auto">🗑 All</button>
+  </div>
+  <p class="hint" id="hint">Draw mode දාලා ඉඩම වටේ tap කරන්න. අවම points 3ක්. extent type කරලා <b>Fit</b>, ඊට පස්සේ <b>Save Land</b>. ඉඩම් කීපයක් එකම KML එකට.</p>
+  <details class="help"><summary>❓ පාවිච්චිය / How to use</summary>
+    <p>1) 📍 එබ්බුවම ඔයා ඉන්න තැන map එකේ පෙන්නනවා.<br>
+       2) ✏️ Draw දාලා ඉඩම වටේ රළු කොටුවක් tap කරන්න.<br>
+       3) SB key එකයි Extent (A-R-P) එකයි type කරන්න.<br>
+       4) <b>Fit to Extent</b> — කොටුව හරියටම ඒ extent එකට කැපෙනවා (හැඩය එහෙම, size එක හරි).<br>
+       5) <b>KML</b> — download කරලා site එකට enter කරන්න.<br>
+       Year dropdown එකෙන් satellite අවුරුද්ද මාරු කරන්න.</p>
+  </details>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ============================================================
+   LICENCE GATE  (offline HMAC-SHA256 signed keys)
+   - 1-year keys, device-locked, 3-day trial
+   - The SECRET below must MATCH the key generator tool.
+   ============================================================ */
+const LIC_SECRET = "RSK-bxNNco6NYy56aJ8n9L91D-9WOqVKNlp9-2026";   // <-- keep private; same in generator
+const TRIAL_DAYS = 3;
+
+const b64u  = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const b64us = str => btoa(unescape(encodeURIComponent(str))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+function b64uToStr(s){ return decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/')))); }
+
+async function hmac(msg){
+  const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(LIC_SECRET),
+    {name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const sig=await crypto.subtle.sign('HMAC',k,new TextEncoder().encode(msg));
+  return b64u(sig);
+}
+async function verifyKey(key){
+  try{
+    const [p,mac]=key.trim().split('.');
+    if(!p||!mac) return {ok:false,err:'Key format wrong'};
+    if(await hmac(p)!==mac) return {ok:false,err:'Invalid key (edited or wrong secret)'};
+    return {ok:true,payload:JSON.parse(b64uToStr(p))};
+  }catch(e){ return {ok:false,err:'Could not read key'}; }
+}
+
+/* stable-ish device id from browser traits (no tracking libs) */
+async function deviceId(){
+  const traits=[navigator.userAgent,navigator.platform,navigator.language,
+    screen.width+'x'+screen.height,screen.colorDepth,
+    Intl.DateTimeFormat().resolvedOptions().timeZone||''].join('|');
+  const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(traits));
+  return b64u(h).slice(0,16);
+}
+
+const LS='rubber_lic';
+function today(){ return new Date().toISOString().slice(0,10); }
+function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/86400000); }
+
+async function checkLicence(){
+  const dev=await deviceId();
+  document.getElementById('devidBox').textContent=dev;
+  const saved=localStorage.getItem(LS);
+
+  // 1) saved full key?
+  if(saved && saved.indexOf('.')>0){
+    const v=await verifyKey(saved);
+    if(v.ok){
+      if(v.payload.d && v.payload.d!==dev) return gateFail('This key is locked to another device.',dev);
+      if(today()>v.payload.exp) return gateFail('Licence expired on '+v.payload.exp+'. Please renew.',dev,true);
+      return gatePass('Licensed to '+(v.payload.n||'user')+' · valid till '+v.payload.exp);
+    }
+  }
+  // 2) trial in progress?
+  if(saved && saved.startsWith('trial:')){
+    const start=saved.slice(6);
+    const used=daysBetween(start,today());
+    if(used<=TRIAL_DAYS) return gatePass('Free trial — '+(TRIAL_DAYS-used)+' day(s) left');
+    return gateFail('Your '+TRIAL_DAYS+'-day trial has ended. Enter a licence key to continue.',dev);
+  }
+  // 3) nothing yet -> show input
+  showGateInput(dev);
+}
+
+function showGateInput(dev){
+  document.getElementById('gmsg').style.display='none';
+  document.getElementById('gateInput').style.display='block';
+  document.getElementById('gateDevice').style.display='block';
+}
+function gateFail(msg,dev,expired){
+  const g=document.getElementById('gmsg'); g.className='gmsg err'; g.textContent=msg; g.style.display='block';
+  document.getElementById('gateInput').style.display='block';
+  document.getElementById('gateDevice').style.display='block';
+}
+let APP_STARTED=false;
+function gatePass(msg){
+  document.getElementById('gate').classList.add('hide');
+  if(!APP_STARTED){ APP_STARTED=true; startApp(); }
+  setTimeout(()=>{ if(window._toast) window._toast(msg); },400);
+}
+
+document.getElementById('actBtn').onclick=async()=>{
+  const key=document.getElementById('keyIn').value.trim();
+  if(!key) return;
+  const dev=await deviceId();
+  const v=await verifyKey(key);
+  if(!v.ok){ return gateFail(v.err,dev); }
+  if(v.payload.d && v.payload.d!==dev){ return gateFail('This key is for another device (ID mismatch).',dev); }
+  if(today()>v.payload.exp){ return gateFail('This key already expired ('+v.payload.exp+').',dev); }
+  localStorage.setItem(LS,key);
+  gatePass('Activated · '+(v.payload.n||'user')+' · till '+v.payload.exp);
+};
+document.getElementById('trialBtn').onclick=()=>{
+  const saved=localStorage.getItem(LS);
+  if(saved && saved.startsWith('trial:')){ const g=document.getElementById('gmsg'); g.className='gmsg err'; g.style.display='block'; g.textContent='Trial already used on this device.'; return; }
+  localStorage.setItem(LS,'trial:'+today());
+  gatePass('Free trial started — '+TRIAL_DAYS+' days');
+};
+document.getElementById('copyDev').onclick=async()=>{
+  const t=document.getElementById('devidBox').textContent;
+  try{ await navigator.clipboard.writeText(t); document.getElementById('copyDev').textContent='Copied ✓'; }
+  catch(e){ /* fallback */ }
+};
+
+/* run the gate once DOM is ready */
+checkLicence();
+</script>
+
+<script>
+/* ---------- constants ---------- */
+const PERCH_M2 = 25.29285264;              // 1 perch
+const ROOD = 40, ACRE = 160;               // perch
+function arpToM2(a,r,p){ return (a*ACRE + r*ROOD + p) * PERCH_M2; }
+function m2ToARP(m2){
+  let P = m2 / PERCH_M2;
+  let A = Math.floor(P/ACRE); P -= A*ACRE;
+  let R = Math.floor(P/ROOD); P -= R*ROOD;
+  return {A,R,P};
+}
+function arpText(m2){ const o=m2ToARP(m2); return `${o.A}A ${o.R}R ${o.P.toFixed(1)}P`; }
+
+/* geodesic area (metres²) of latlng ring, spherical excess */
+function ringAreaM2(latlngs){
+  if(latlngs.length<3) return 0;
+  const R=6378137; let s=0;
+  for(let i=0;i<latlngs.length;i++){
+    const p1=latlngs[i], p2=latlngs[(i+1)%latlngs.length];
+    s += (p2.lng-p1.lng)*Math.PI/180 *
+         (2 + Math.sin(p1.lat*Math.PI/180) + Math.sin(p2.lat*Math.PI/180));
+  }
+  return Math.abs(s * R*R / 2);
+}
+
+/* ---------- map + base layers ---------- */
+/* ---------- app starts only after licence passes ---------- */
+function startApp(){
+const map = L.map('map',{zoomControl:false, attributionControl:false, tap:false})
+             .setView([7.1731,80.3050], 16);   // Kotiyakumbura-ish default
+
+// Google satellite (virtual tile endpoint). If Google blocks, fall back to Esri.
+const googleSat = L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+  {subdomains:['0','1','2','3'], maxZoom:21, maxNativeZoom:21});
+const googleHyb = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+  {subdomains:['0','1','2','3'], maxZoom:21, maxNativeZoom:21});     // sat + labels/roads
+const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom:21, maxNativeZoom:19});
+
+// Esri Wayback (dated imagery) — release IDs by year (public, no key)
+const WAYBACK = {
+  '2024':64776,'2023':1105,'2022':11475,'2021':10,'2020':17162,
+  '2019':13882,'2018':7014,'2017':16681,'2016':10788,'2014':10
+};
+function waybackLayer(rel){
+  return L.tileLayer(`https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${rel}/{z}/{y}/{x}`,
+    {maxZoom:21, maxNativeZoom:19});
+}
+
+let current = googleHyb.addTo(map);
+function setBase(layer){ if(current){map.removeLayer(current);} current=layer.addTo(map); current.bringToBack(); }
+
+/* year dropdown */
+const yearSel = document.getElementById('yearSel');
+yearSel.innerHTML =
+  '<option value="google">Google (latest)</option>' +
+  '<option value="esri">Esri (latest)</option>' +
+  Object.keys(WAYBACK).sort((a,b)=>b-a).map(y=>`<option value="wb${y}">📅 ${y}</option>`).join('');
+yearSel.onchange = ()=>{
+  const v=yearSel.value;
+  if(v==='google') setBase(googleHyb);
+  else if(v==='esri') setBase(esriSat);
+  else { setBase(waybackLayer(WAYBACK[v.slice(2)])); toast('Imagery: '+v.slice(2)); }
+};
+
+/* if Google tiles fail (network/region), fall back to Esri automatically */
+let gErr=0;
+googleHyb.on('tileerror',()=>{ if(++gErr===6){ toast('Google tiles blocked — switching to Esri'); yearSel.value='esri'; setBase(esriSat);} });
+
+/* ---------- drawing ---------- */
+let mode='pan', pts=[], markers=[], poly=null, labelMarker=null, fitted=false;
+let savedLands=[];        // [{sb, area, pts:[latlng...], layer, label}]
+let snapOn=true;
+const SNAP_PX=18;         // snap radius in screen pixels
+
+const modeSeg=document.getElementById('modeSeg');
+modeSeg.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  mode=b.dataset.m;
+  [...modeSeg.children].forEach(x=>x.classList.toggle('on',x===b));
+  map.dragging.enable();
+  hint(mode==='draw'?'ඉඩම වටේ tap කරන්න. Snap boundary එකට අදිනවා. අවම points 3ක්.'
+      :mode==='insert'?'දැනට ඇඳපු රේඛාව මත (edge එකක්) tap කරන්න — අලුත් point එකක් ඒ දෙක අතරට එනවා.'
+      :'Map එක pan/zoom. Draw / Add දාලා point දාන්න.');
+});
+
+/* build a draggable marker for working point at index i */
+function snapPoint(latlng){
+  if(!snapOn || !savedLands.length) return {ll:latlng,snapped:false};
+  const cp=map.latLngToContainerPoint(latlng);
+  let best=null, bestd=SNAP_PX;
+  for(const land of savedLands){
+    for(const v of land.pts){
+      const sp=map.latLngToContainerPoint(v);
+      const d=Math.hypot(sp.x-cp.x, sp.y-cp.y);
+      if(d<bestd){ bestd=d; best=v; }
+    }
+  }
+  if(best) return {ll:L.latLng(best.lat,best.lng),snapped:true};
+  bestd=SNAP_PX;
+  for(const land of savedLands){
+    const n=land.pts.length;
+    for(let i=0;i<n;i++){
+      const a=map.latLngToContainerPoint(land.pts[i]);
+      const b=map.latLngToContainerPoint(land.pts[(i+1)%n]);
+      const abx=b.x-a.x, aby=b.y-a.y; const len2=abx*abx+aby*aby || 1;
+      let t=((cp.x-a.x)*abx+(cp.y-a.y)*aby)/len2; t=Math.max(0,Math.min(1,t));
+      const px=a.x+abx*t, py=a.y+aby*t;
+      const d=Math.hypot(px-cp.x, py-cp.y);
+      if(d<bestd){ bestd=d; best=map.containerPointToLatLng(L.point(px,py)); }
+    }
+  }
+  if(best) return {ll:best,snapped:true};
+  return {ll:latlng,snapped:false};
+}
+
+function makeMarker(latlng){
+  const m=L.marker(latlng,{icon:L.divIcon({className:'',html:'<div class="mk"></div>',iconSize:[14,14],iconAnchor:[7,7]}),draggable:true});
+  m.on('drag',ev=>{ pts[markers.indexOf(m)]=ev.latlng; redraw(); });
+  m.on('dragend',ev=>{ const sp=snapPoint(ev.target.getLatLng()); pts[markers.indexOf(m)]=sp.ll; m.setLatLng(sp.ll); if(sp.snapped) toast('🧲 snapped'); redraw(); });
+  return m;
+}
+function rebuildMarkers(){
+  markers.forEach(m=>map.removeLayer(m)); markers=[];
+  pts.forEach(p=>{ const m=makeMarker(p); m.addTo(map); markers.push(m); });
+}
+
+/* find where to insert a new point on the CURRENT polygon nearest a click */
+function insertOnCurrent(latlng){
+  if(pts.length<2) return false;
+  const cp=map.latLngToContainerPoint(latlng);
+  let bestSeg=-1, bestd=25, bestPt=null;   // 25px tolerance
+  const n=pts.length;
+  for(let i=0;i<n;i++){
+    const a=map.latLngToContainerPoint(pts[i]);
+    const b=map.latLngToContainerPoint(pts[(i+1)%n]);
+    const abx=b.x-a.x, aby=b.y-a.y; const len2=abx*abx+aby*aby||1;
+    let t=((cp.x-a.x)*abx+(cp.y-a.y)*aby)/len2; t=Math.max(0,Math.min(1,t));
+    const px=a.x+abx*t, py=a.y+aby*t;
+    const d=Math.hypot(px-cp.x,py-cp.y);
+    if(d<bestd){ bestd=d; bestSeg=i; bestPt=map.containerPointToLatLng(L.point(px,py)); }
+  }
+  if(bestSeg<0) return false;
+  pts.splice(bestSeg+1,0,bestPt);
+  rebuildMarkers(); fitted=false; redraw();
+  toast('➕ point added');
+  return true;
+}
+
+map.on('click',e=>{
+  if(mode==='insert'){ if(!insertOnCurrent(e.latlng)) toast('රේඛාව මත (edge) tap කරන්න'); return; }
+  if(mode!=='draw') return;
+  fitted=false;
+  const s=snapPoint(e.latlng);
+  if(s.snapped) toast('🧲 snapped to boundary');
+  pts.push(s.ll);
+  const m=makeMarker(s.ll); m.addTo(map); markers.push(m);
+  redraw();
+});
+
+function redraw(){
+  if(poly){ map.removeLayer(poly); poly=null; }
+  if(pts.length>=2){
+    poly=L.polygon(pts,{color:'#ffb64d',weight:2,fill:true,fillColor:'#ffb64d',fillOpacity:.12}).addTo(map);
+  }
+  const area = pts.length>=3 ? ringAreaM2(pts) : 0;
+  document.getElementById('drawnArea').textContent = arpText(area);
+  const has = pts.length>=3;
+  document.getElementById('fitBtn').disabled = !has;
+  document.getElementById('addBtn').disabled = !has;
+  updateLabel(area);
+}
+
+function refreshSavedUI(){
+  document.getElementById('savedCnt').textContent = savedLands.length;
+  document.getElementById('kmlBtn').disabled = (savedLands.length===0 && pts.length<3);
+}
+
+/* draw a saved land permanently (teal) with its label */
+function drawSaved(land){
+  land.layer = L.polygon(land.pts,{color:'#2fb3a3',weight:2,fill:true,fillColor:'#2fb3a3',fillOpacity:.14}).addTo(map);
+  land.lbl = L.marker(centroid(land.pts),{interactive:false,
+    icon:L.divIcon({className:'',html:`<div class="lblbadge">${(land.sb?land.sb+'  |  ':'')+arpText(land.area)}</div>`,iconSize:[0,0]})}).addTo(map);
+}
+
+function targetM2(){
+  const a=+document.getElementById('A').value||0, r=+document.getElementById('R').value||0, p=+parseFloat(document.getElementById('P').value)||0;
+  return arpToM2(a,r,p);
+}
+['A','R','P'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  document.getElementById('tgtArea').textContent = arpText(targetM2());
+}));
+
+/* centroid of latlng ring */
+function centroid(ll){
+  let x=0,y=0,z=0;
+  ll.forEach(p=>{const la=p.lat*Math.PI/180, lo=p.lng*Math.PI/180;
+    x+=Math.cos(la)*Math.cos(lo); y+=Math.cos(la)*Math.sin(lo); z+=Math.sin(la);});
+  const n=ll.length; x/=n;y/=n;z/=n;
+  const lon=Math.atan2(y,x), hyp=Math.sqrt(x*x+y*y), lat=Math.atan2(z,hyp);
+  return L.latLng(lat*180/Math.PI, lon*180/Math.PI);
+}
+
+/* ---------- FIT TO EXTENT: scale ring about centroid so area == target ---------- */
+document.getElementById('fitBtn').onclick=()=>{
+  if(pts.length<3) return;
+  const tgt=targetM2();
+  if(tgt<=0){ toast('Type the extent (A-R-P) first'); flash('R'); return; }
+  const cur=ringAreaM2(pts);
+  if(cur<=0){ toast('Drawn shape has no area'); return; }
+  const f=Math.sqrt(tgt/cur);
+  const c=centroid(pts);
+  const mPerDegLat=110540, mPerDegLon=111320*Math.cos(c.lat*Math.PI/180);
+  pts = pts.map(p=>{
+    const dx=(p.lng-c.lng)*mPerDegLon, dy=(p.lat-c.lat)*mPerDegLat;
+    return L.latLng(c.lat + (dy*f)/mPerDegLat, c.lng + (dx*f)/mPerDegLon);
+  });
+  markers.forEach((m,i)=>m.setLatLng(pts[i]));
+  fitted=true; redraw();
+  toast('Fitted to '+arpText(ringAreaM2(pts)));
+};
+
+/* ---------- label inside polygon ---------- */
+function updateLabel(area){
+  if(labelMarker){ map.removeLayer(labelMarker); labelMarker=null; }
+  if(pts.length<3) return;
+  const sb=document.getElementById('sbKey').value.trim();
+  const txt=(sb?sb+'  |  ':'')+arpText(area);
+  labelMarker=L.marker(centroid(pts),{interactive:false,
+    icon:L.divIcon({className:'',html:`<div class="lblbadge">${txt}</div>`,iconSize:[0,0]})}).addTo(map);
+}
+document.getElementById('sbKey').addEventListener('input',()=>updateLabel(ringAreaM2(pts)));
+
+/* ---------- undo / clear ---------- */
+document.getElementById('undo').onclick=()=>{
+  if(!pts.length) return;
+  pts.pop(); const m=markers.pop(); if(m) map.removeLayer(m); fitted=false; redraw();
+};
+document.getElementById('clrBtn').onclick=()=>{
+  pts=[]; markers.forEach(m=>map.removeLayer(m)); markers=[];
+  if(poly){map.removeLayer(poly);poly=null;} if(labelMarker){map.removeLayer(labelMarker);labelMarker=null;}
+  fitted=false; redraw();
+};
+
+/* ---------- save current land into the collection ---------- */
+document.getElementById('addBtn').onclick=()=>{
+  if(pts.length<3){ toast('Draw at least 3 points'); return; }
+  if(targetM2()>0 && !fitted){
+    if(!confirm('Fit to Extent එක ඔබලා නෑ. දැන් ඇඳපු size එකෙන්ම save කරන්නද?')) return;
+  }
+  const sb=document.getElementById('sbKey').value.trim();
+  const land={sb:sb, area:ringAreaM2(pts), pts:pts.map(p=>L.latLng(p.lat,p.lng))};
+  savedLands.push(land);
+  drawSaved(land);
+  // reset the working drawing for the next land
+  pts=[]; markers.forEach(m=>map.removeLayer(m)); markers=[];
+  if(poly){map.removeLayer(poly);poly=null;} if(labelMarker){map.removeLayer(labelMarker);labelMarker=null;}
+  fitted=false;
+  document.getElementById('sbKey').value='';
+  document.getElementById('A').value=0; document.getElementById('R').value=0; document.getElementById('P').value=0;
+  document.getElementById('tgtArea').textContent=arpText(0);
+  redraw(); refreshSavedUI();
+  toast('✅ Saved '+(sb||'land')+'  ('+savedLands.length+' total). Draw the next one.');
+};
+
+document.getElementById('snapTgl').onclick=()=>{
+  snapOn=!snapOn;
+  document.getElementById('snapTgl').textContent='🧲 Snap: '+(snapOn?'ON':'OFF');
+  toast('Boundary snap '+(snapOn?'ON — shared boundaries':'OFF'));
+};
+
+document.getElementById('delAllBtn').onclick=()=>{
+  if(!savedLands.length){ toast('No saved lands'); return; }
+  if(!confirm('Saved lands '+savedLands.length+'ම මකන්නද?')) return;
+  savedLands.forEach(L2=>{ if(L2.layer)map.removeLayer(L2.layer); if(L2.lbl)map.removeLayer(L2.lbl); });
+  savedLands=[]; refreshSavedUI(); toast('All saved lands cleared');
+};
+
+/* ---------- GPS ---------- */
+let meMarker=null, meAcc=null;
+// Browsers only allow geolocation on https:// (or localhost). A file:// or
+// content:// page can never get location - detect that up front.
+function isSecure(){
+  return window.isSecureContext ||
+         location.protocol==='https:' ||
+         location.hostname==='localhost' || location.hostname==='127.0.0.1';
+}
+function bigMsg(html){
+  let d=document.getElementById('bigmsg');
+  if(!d){ d=document.createElement('div'); d.id='bigmsg';
+    d.style.cssText='position:absolute;left:12px;right:12px;top:70px;z-index:1300;background:#0c1614f2;'+
+      'border:1px solid var(--teal);border-radius:14px;padding:14px 16px;font-size:13px;line-height:1.5;'+
+      'box-shadow:0 8px 30px #000a';
+    document.body.appendChild(d); }
+  d.innerHTML=html+'<div style="text-align:right;margin-top:8px"><button onclick="this.closest(\'#bigmsg\').remove()" '+
+    'style="background:var(--teal);border:0;color:#06110e;font-weight:700;padding:7px 14px;border-radius:9px">හරි OK</button></div>';
+}
+document.getElementById('gps').onclick=()=>{
+  if(!navigator.geolocation){ toast('No GPS on this device'); return; }
+  if(!isSecure()){
+    bigMsg('📍 <b>Location වැඩ කරන්නෙ නෑ — පිටුව <u>https://</u> එකකින් open කරලා නෑ.</b><br><br>'+
+      'දැන් file/download එකකින් open වෙලා (<code>'+location.protocol+'</code>). Browser එකට location දෙන්නෙ https පිටු වලට විතරයි.<br><br>'+
+      '<b>විසඳුම (free):</b><br>1) <b>app.netlify.com/drop</b> එකට යන්න.<br>'+
+      '2) මේ <b>FieldSketch.html</b> file එක drag කරන්න.<br>'+
+      '3) එන <b>https link</b> එකෙන් phone එකේ open කරන්න.<br>'+
+      '4) එතකොට 📍 එබ්බුවම "Allow location" එනවා → Allow.<br><br>'+
+      '<span style="color:var(--dim)">location නැතුවත් map එක pan කරලා ✏️ Draw කරන්න පුළුවන්.</span>');
+    return;
+  }
+  toast('Locating…');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const ll=L.latLng(pos.coords.latitude,pos.coords.longitude);
+    if(meMarker) map.removeLayer(meMarker);
+    if(meAcc) map.removeLayer(meAcc);
+    meAcc=L.circle(ll,{radius:pos.coords.accuracy||10,color:'#2fb3a3',weight:1,fillColor:'#2fb3a3',fillOpacity:.15}).addTo(map);
+    meMarker=L.circleMarker(ll,{radius:7,color:'#fff',weight:2,fillColor:'#2fb3a3',fillOpacity:1}).addTo(map);
+    map.setView(ll, 19);
+    toast('You are here (±'+Math.round(pos.coords.accuracy)+'m)');
+  }, err=>{
+    if(err.code===1){ // PERMISSION_DENIED
+      bigMsg('📍 <b>Location permission එක deny වෙලා.</b><br><br>'+
+        '<b>Chrome (Android):</b> URL bar එකේ 🔒/ⓘ icon එක tap → <b>Permissions → Location → Allow</b> → ආයෙ 📍 ඔබන්න.<br><br>'+
+        '<b>නැත්නම්:</b> Phone <b>Settings → Apps → Chrome → Permissions → Location → Allow</b>.<br><br>'+
+        '<span style="color:var(--dim)">location නැතුවත් map එක pan කරලා ✏️ Draw කරන්න පුළුවන්.</span>');
+    } else if(err.code===3){ toast('GPS timeout — try again in the open sky'); }
+    else { toast('GPS error: '+err.message); }
+  }, {enableHighAccuracy:true,timeout:12000,maximumAge:0});
+};
+
+/* ---------- KML export: ALL saved lands (+ current unsaved) in ONE file ---------- */
+document.getElementById('kmlBtn').onclick=()=>{
+  const lands=savedLands.slice();
+  if(pts.length>=3){
+    if(!fitted && targetM2()>0){
+      if(!confirm('දැන් ඇඳගෙන ඉන්න ඉඩම Fit කරලා නෑ / Save කරලා නෑ. ඒකත් KML එකට දාන්නද?')) {}
+    }
+    lands.push({sb:document.getElementById('sbKey').value.trim(),area:ringAreaM2(pts),pts:pts.slice()});
+  }
+  if(!lands.length){ toast('No lands to export'); return; }
+  const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let body='';
+  lands.forEach((land,i)=>{
+    const ring=land.pts.slice(); ring.push(land.pts[0]);
+    const coords=ring.map(p=>`${p.lng.toFixed(9)},${p.lat.toFixed(9)},0`).join(' ');
+    const c=centroid(land.pts);
+    const name=land.sb || ('Lot '+(i+1));
+    const lbl=`${name}  |  ${arpText(land.area)}`;
+    body+=`<Placemark><name>${esc(name)}</name><description><![CDATA[<b>SB:</b> ${esc(land.sb)}<br><b>Extent:</b> ${arpText(land.area)}<br>]]></description>`+
+          `<styleUrl>#p</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${coords}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`+
+          `<Placemark><name>${esc(lbl)}</name><styleUrl>#l</styleUrl><Point><coordinates>${c.lng.toFixed(9)},${c.lat.toFixed(9)},0</coordinates></Point></Placemark>`;
+  });
+  const docname = lands.length===1 ? (lands[0].sb||'parcel') : ('Field lands ('+lands.length+')');
+  const kml=`<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${esc(docname)}</name>
+<Style id="p"><LineStyle><color>ff00d0ff</color><width>3</width></LineStyle><PolyStyle><color>3300d0ff</color></PolyStyle></Style>
+<Style id="l"><IconStyle><scale>0.5</scale><color>ffffffff</color><Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle><LabelStyle><color>ffffffff</color><scale>1.3</scale></LabelStyle></Style>
+${body}
+</Document></kml>`;
+  const blob=new Blob([kml],{type:'application/vnd.google-earth.kml+xml'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const fn = (lands.length===1 ? (lands[0].sb||'parcel') : 'field_lands_'+lands.length);
+  a.href=url; a.download=fn.replace(/[^\w\-]+/g,'_')+'.kml';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+  toast('KML saved: '+a.download+'  ('+lands.length+' land'+(lands.length>1?'s':'')+')');
+};
+
+/* ---------- little helpers ---------- */
+let toTimer=null;
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
+  clearTimeout(toTimer); toTimer=setTimeout(()=>t.classList.remove('show'),2200); }
+window._toast=toast;   // let the licence gate show messages after unlock
+function hint(m){ document.getElementById('hint').innerHTML=m; }
+function flash(id){ const el=document.getElementById(id); el.style.transition='background .1s'; el.parentElement.style.background='#5a2b2b'; setTimeout(()=>el.parentElement.style.background='',350); }
+
+/* start with target readout synced */
+document.getElementById('tgtArea').textContent = arpText(targetM2());
+refreshSavedUI();
+
+/* ---- workspace: keep the map fully visible, collapsible panel ---- */
+const sheet=document.getElementById('sheet');
+function syncSheetH(){
+  const h = sheet.classList.contains('collapsed') ? 46 : Math.min(sheet.offsetHeight, window.innerHeight*0.62);
+  document.documentElement.style.setProperty('--sheetH', h+'px');
+  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} },260);
+}
+function toggleSheet(){
+  sheet.classList.toggle('collapsed');
+  document.getElementById('sheetTgl').textContent = sheet.classList.contains('collapsed') ? '▴' : '▾';
+  syncSheetH();
+}
+document.getElementById('sheetTgl').onclick=toggleSheet;
+document.getElementById('grip').onclick=toggleSheet;
+window.addEventListener('resize',syncSheetH);
+new ResizeObserver(syncSheetH).observe(sheet);
+syncSheetH();
+
+/* first-run notice if not served over https (location won't work) */
+if(!isSecure()){
+  setTimeout(()=>toast('⚠️ https නෙවෙයි — 📍 location වැඩ කරන්නෙ නෑ. Draw වැඩ කරයි.'),700);
+}
+} /* ---- end startApp() ---- */
+</script>
+<script>
+/* ---------- PWA: installable + offline (single-file friendly) ---------- */
+(function(){
+  // inline manifest via blob so this stays one file
+  const icon='data:image/svg+xml;base64,'+btoa(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" rx="96" fill="#12201c"/>'+
+    '<circle cx="256" cy="256" r="150" fill="none" stroke="#2fb3a3" stroke-width="22"/>'+
+    '<path d="M170 300 L230 200 L320 250 L350 330 Z" fill="none" stroke="#ffb64d" stroke-width="16" stroke-linejoin="round"/>'+
+    '<text x="256" y="430" font-size="70" fill="#eaf3f0" text-anchor="middle" font-family="sans-serif" font-weight="bold">රබර්</text></svg>');
+  const manifest={name:"Field Sketch — Rubber",short_name:"Field Sketch",start_url:".",display:"standalone",
+    background_color:"#0e1512",theme_color:"#0e1512",orientation:"any",
+    icons:[{src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}]};
+  const mblob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  const ml=document.createElement('link'); ml.rel='manifest'; ml.href=URL.createObjectURL(mblob);
+  document.head.appendChild(ml);
+  const al=document.createElement('link'); al.rel='apple-touch-icon'; al.href=icon; document.head.appendChild(al);
+
+  // service worker for offline (needs same-origin file when hosted). We register
+  // an external sw.js if present; if not (single-file use), we skip silently.
+  if('serviceWorker' in navigator && location.protocol==='https:'){
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* single-file mode: no sw.js, that's fine */ });
+  }
+})();
+</script>
+</body>
+</html>
