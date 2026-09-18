@@ -1,7 +1,7 @@
 /* Field Sketch — offline service worker
    Caches the app shell + Leaflet + map tiles so the tool keeps working with
    a weak or no signal in the field. Bump CACHE to force an update. */
-const CACHE = 'fieldsketch-v2';
+const CACHE = 'fieldsketch-v3';
 const SHELL = [
   './',
   './index.html',
