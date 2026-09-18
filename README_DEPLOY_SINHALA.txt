@@ -26,7 +26,8 @@ Map
 ---
 - Feature type සහ destination layer තෝරා Draw කරන්න.
 - Parcel/Building polygon එක Finish කළ විට target extent සහ Auto fit ON නම් preview ලැබේ.
-- Red vertices snapped/locked vertices වන අතර Auto Fit මඟින් ඒවා වෙනස් නොවේ.
+- Vertices default unlocked වේ. Draft vertex එක tap කර lock/unlock කළ හැක.
+- Lock new vertices ON කළ විට අලුතින් එකතු කරන vertices red/locked වේ; Auto Fit ඒවා වෙනස් නොකරයි.
 - Existing feature එක Select කර Edit මඟින් geometry edit කළ හැක.
 - Trace Boundary: existing visible snap layer එකේ start සහ end point tap කළ විට අතර geometry auto-copy වේ.
 - Area Split: selected unlocked polygon එක Parallel Line හෝ Pivot Rotate method එකෙන් split කළ හැක.
@@ -34,8 +35,12 @@ Map
 
 Survey
 ------
-- Save Current GPS මඟින් current position එක point number/code/remark සමඟ save වේ.
-- Tap Point මඟින් map point එකක් save කළ හැක.
+- Survey Method එකෙන් Point, Line, Polyline හෝ Polygon තෝරන්න.
+- Add GPS Position හෝ Mark on Map මඟින් current survey session එකට අවශ්‍ය points පමණක් එකතු කරන්න.
+- Survey session readout එක line length හෝ polygon area පෙන්වයි.
+- Finish Geometry මඟින් එම session එකේ points පමණක් join කර feature එක save කරයි.
+- Join Selected Points / Boundary Lines මඟින් map එකේ අවශ්‍ය saved points/lines order එකට තෝරා Polyline හෝ Polygon සාදන්න. සියලු points auto-join නොවේ.
+- Map / Subdivide මඟින් අවසන් කළ polygon එක Map tab එකේ select කර area tools භාවිත කළ හැක.
 - +Code මඟින් add කරන codes සියලු projects අතර auto-save වේ.
 - GPS Boundary Walk: Start, optional Record, Stop & Join.
 - WGS84 සහ SLD99 coordinates Survey table සහ CSV export දෙකේ ඇත.
