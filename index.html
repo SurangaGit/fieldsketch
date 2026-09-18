@@ -87,6 +87,16 @@ label.lab{font-size:11px;color:var(--dim);min-width:48px}
 details.help{margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
 details.help summary{font-size:12px;color:var(--teal);font-weight:600;cursor:pointer;list-style:none}
 details.help p{font-size:11px;color:var(--dim);line-height:1.5;margin:6px 0}
+.advgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:7px}
+.advgrid .wide{grid-column:1/-1}.advbox{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px}
+.advbox h4{margin:0 0 6px;font-size:12px;color:var(--teal)}
+.advinput{width:100%;background:#101b18;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px;font-size:12px;outline:none}
+.advrow{display:flex;gap:6px;margin-top:6px}.advrow>*{min-width:0;flex:1}
+.mini{padding:8px 7px;font-size:11px;border-radius:8px}.coordwrap{max-height:150px;overflow:auto;margin-top:6px}
+.coordtbl{width:100%;border-collapse:collapse;font-size:9px;font-variant-numeric:tabular-nums}
+.coordtbl th,.coordtbl td{border-bottom:1px solid var(--line);padding:4px;text-align:right;white-space:nowrap}
+.coordtbl th:first-child,.coordtbl td:first-child,.coordtbl th:nth-child(2),.coordtbl td:nth-child(2){text-align:left}
+.locked-dot{background:#ff6b6b!important;box-shadow:0 0 0 2px #fff}.cutline{pointer-events:none}
 
 /* ---- licence gate ---- */
 #gate{position:fixed;inset:0;z-index:5000;background:radial-gradient(120% 90% at 50% 0%,#12201c,#0b1210);
@@ -183,6 +193,35 @@ details.help p{font-size:11px;color:var(--dim);line-height:1.5;margin:6px 0}
     <button class="btn ghost red" id="delAllBtn" style="flex:0 0 auto">🗑 All</button>
   </div>
   <p class="hint" id="hint">Draw mode දාලා ඉඩම වටේ tap කරන්න. අවම points 3ක්. extent type කරලා <b>Fit</b>, ඊට පස්සේ <b>Save Land</b>. ඉඩම් කීපයක් එකම KML එකට.</p>
+  <details class="help" id="advanced"><summary>🛠 Advanced — Jobs / Split / GPS / DXF / Coordinates</summary>
+    <div class="advgrid">
+      <div class="advbox wide"><h4>Job-wise Save / Open</h4>
+        <div class="advrow"><input class="advinput" id="jobName" placeholder="Job name"><select class="advinput" id="jobSel"><option value="">Open job…</option></select></div>
+        <div class="advrow"><button class="btn ghost mini" id="newJobBtn">New</button><button class="btn ghost mini" id="openJobBtn">Open</button><button class="btn mini" id="saveJobBtn">Save Job</button></div>
+      </div>
+      <div class="advbox wide"><h4>Remark + Point details</h4>
+        <textarea class="advinput" id="remark" rows="2" placeholder="Any remark / විශේෂ කරුණු"></textarea>
+        <div class="advrow"><input class="advinput" id="pointNo" placeholder="Next point no."><input class="advinput" id="pointCode" placeholder="Code (BP/RD/etc.)"></div>
+        <div class="advrow"><button class="btn ghost mini" id="joinBtn">Join measured points</button><button class="btn ghost mini" id="coordCsvBtn">Export Coordinates CSV</button></div>
+      </div>
+      <div class="advbox"><h4>Parallel-area Split</h4><p class="hint">Pick line දී map එකේ direction points 2ක් tap කරන්න. Extent field එක split කොටසයි.</p>
+        <div class="advrow"><button class="btn ghost mini" id="parallelPickBtn">Pick line</button><button class="btn amber mini" id="parallelSplitBtn">Split</button></div>
+      </div>
+      <div class="advbox"><h4>Pivot / Rotate Split</h4><p class="hint">Pivot point එකත් direction point එකත් tap කර target extent එකට rotate cut.</p>
+        <div class="advrow"><button class="btn ghost mini" id="rotatePickBtn">Pick pivot+line</button><button class="btn amber mini" id="rotateSplitBtn">Split</button></div>
+      </div>
+      <div class="advbox wide"><h4>GPS Walk Polygon</h4>
+        <div class="advrow"><button class="btn ghost mini" id="walkStartBtn">▶ Start walk</button><button class="btn ghost mini" id="walkPointBtn">＋ Record now</button><button class="btn mini" id="walkStopBtn">■ Stop & Join</button></div>
+        <p class="hint" id="walkStatus">Not recording. High-accuracy positions will be added as boundary points.</p>
+      </div>
+      <div class="advbox wide"><h4>Import / Export</h4>
+        <div class="advrow"><button class="btn ghost mini" id="dxfImportBtn">Import DXF (SLD99)</button><button class="btn ghost mini" id="dxfExportBtn">Export DXF (SLD99)</button></div>
+        <div class="advrow"><button class="btn ghost mini" id="kmlImportBtn">Import KML lands</button><button class="btn ghost mini" id="refKmlBtn">Add GN/reference KML</button></div>
+        <input id="fileIn" type="file" hidden>
+      </div>
+      <div class="advbox wide"><h4>Point Coordinates — WGS84 / SLD99</h4><div class="coordwrap"><table class="coordtbl"><thead><tr><th>Pt</th><th>Code</th><th>Lat</th><th>Lon</th><th>E</th><th>N</th></tr></thead><tbody id="coordBody"></tbody></table></div></div>
+    </div>
+  </details>
   <details class="help"><summary>❓ පාවිච්චිය / How to use</summary>
     <p>1) 📍 එබ්බුවම ඔයා ඉන්න තැන map එකේ පෙන්නනවා.<br>
        2) ✏️ Draw දාලා ඉඩම වටේ රළු කොටුවක් tap කරන්න.<br>
@@ -275,7 +314,11 @@ function gateFail(msg,dev,expired){
 let APP_STARTED=false;
 function gatePass(msg){
   document.getElementById('gate').classList.add('hide');
-  if(!APP_STARTED){ APP_STARTED=true; startApp(); }
+  if(!APP_STARTED){
+    APP_STARTED=true;
+    if(typeof window.startApp==='function') startApp();
+    else window.addEventListener('load',()=>startApp(),{once:true});
+  }
   setTimeout(()=>{ if(window._toast) window._toast(msg); },400);
 }
 
@@ -306,7 +349,7 @@ document.getElementById('copyDev').onclick=async()=>{
 checkLicence();
 </script>
 
-<script>
+<script type="text/plain" id="legacyApp">
 /* ---------- constants ---------- */
 const PERCH_M2 = 25.29285264;              // 1 perch
 const ROOD = 40, ACRE = 160;               // perch
@@ -710,6 +753,8 @@ if(!isSecure()){
 }
 } /* ---- end startApp() ---- */
 </script>
+<script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
+<script src="app.js"></script>
 <script>
 /* ---------- PWA: installable + offline (single-file friendly) ---------- */
 (function(){
