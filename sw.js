@@ -1,53 +1,44 @@
-/* Field Sketch — offline service worker
-   Caches the app shell + Leaflet + map tiles so the tool keeps working with
-   a weak or no signal in the field. Bump CACHE to force an update. */
-const CACHE = 'fieldsketch-v5';
-const SHELL = [
-  './',
-  './index.html',
-  './app.js',
+/* Versioned app shell; never deletes another app's caches or project storage. */
+'use strict';
+const PREFIX = 'fieldsketch:' + self.registration.scope;
+const CACHE = PREFIX + ':v7';
+const TILES = PREFIX + ':tiles';
+const LOCAL = ['./', './index.html', './app.js?v=7', './geometry.js?v=7', './styles.css?v=7'];
+const LIBS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js'
 ];
-
-self.addEventListener('install', e=>{
-  e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(SHELL.map(u=>c.add(u)))).then(()=>self.skipWaiting()));
+self.addEventListener('install', event => {
+  // Installation succeeds only when all required app files can work offline.
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll([...LOCAL, ...LIBS])).then(() => self.skipWaiting()));
 });
-self.addEventListener('activate', e=>{
-  e.waitUntil(caches.keys().then(keys=>Promise.all(
-    keys.filter(k=>k!==CACHE&&k!==CACHE+'-tiles').map(k=>caches.delete(k))
-  )).then(()=>self.clients.claim()));
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith(PREFIX + ':') && k !== CACHE && k !== TILES).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
-self.addEventListener('fetch', e=>{
-  const url = e.request.url;
-  if(e.request.mode==='navigate'){
-    e.respondWith(fetch(e.request).then(res=>{
-      if(res.ok)caches.open(CACHE).then(c=>c.put('./index.html',res.clone()));
-      return res;
-    }).catch(()=>caches.match('./index.html')));
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (event.request.mode === 'navigate') {
+    event.respondWith(fetch(event.request).then(async response => {
+      if (response.ok) { const cache = await caches.open(CACHE); await cache.put('./index.html', response.clone()).catch(() => {}); }
+      return response;
+    }).catch(async () => (await caches.open(CACHE)).match('./index.html')));
     return;
   }
-  // map tiles (google / esri / wayback): cache-first, keep last-seen tiles offline
-  const isTile = /google\.com\/vt|arcgisonline|wayback\.maptiles/.test(url);
-  if(isTile){
-    e.respondWith(
-      caches.open(CACHE+'-tiles').then(async c=>{
-        const hit=await c.match(e.request);
-        if(hit) return hit;
-        try{ const res=await fetch(e.request); if(res.ok) c.put(e.request,res.clone()); return res; }
-        catch(err){ return hit || Response.error(); }
-      })
-    );
-    return;
-  }
-  // app shell + libs: cache-first, fall back to network
-  e.respondWith(
-    caches.match(e.request).then(hit=> hit || fetch(e.request).then(res=>{
-      if(res.ok && e.request.method==='GET'){
-        const cp=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp));
-      }
-      return res;
-    }).catch(()=>hit))
-  );
+  const isTile = url.hostname === 'server.arcgisonline.com' && url.pathname.includes('/tile/');
+  const isAsset = LOCAL.some(p => new URL(p, self.registration.scope).href === url.href) || LIBS.includes(url.href);
+  if (!isTile && !isAsset) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(isTile ? TILES : CACHE), hit = await cache.match(event.request);
+    if (hit) return hit;
+    const response = await fetch(event.request);
+    if (response.ok || (isTile && response.type === 'opaque')) {
+      try {
+        await cache.put(event.request, response.clone());
+        if (isTile) { const keys = await cache.keys(); for (const key of keys.slice(0, Math.max(0, keys.length - 250))) await cache.delete(key); }
+      } catch (_) { /* Imagery cache quota must not prevent map use. */ }
+    }
+    return response;
+  })());
 });
