@@ -1,5 +1,5 @@
 FieldSketch — V.R.S. Vithana
-Field Edition 7
+Field Edition 8
 ===========================
 
 මෙය GitHub Pages මත ධාවනය කරන field sketch application එකකි.
@@ -27,11 +27,11 @@ Custom build step එකක් හෝ npm install එකක් අවශ්‍�
 README සහ tests folder එක publish කිරීම අත්‍යවශ්‍ය නැහැ.
 
 Deployment success වූ පසු:
-  https://surangagit.github.io/fieldsketch/?v=7
+  https://surangagit.github.io/fieldsketch/?v=8
 
 Desktop: Ctrl+Shift+R මඟින් reload කරන්න.
 Phone: පැරණි tab එක වසා ඉහත link එක අලුත් tab එකකින් open කරන්න.
-Header එකේ “Field Edition 7” තිබේද බලන්න.
+Header එකේ “Field Edition 8” තිබේද බලන්න.
 තවමත් පරණ UI එක නම් GitHub deployment success වී තිබේද මුලින් බලන්න.
 Desktop DevTools → Application → Service Workers → Unregister කර reload කළ හැක.
 Clear storage / Clear site data භාවිත කරන්න එපා; එයින් local projects නැතිවිය හැක.
@@ -84,7 +84,7 @@ Protected feature/layer එකකට snap කළ හැක; hidden layer එක�
 
 Shared boundary button:
   1) Polygon හෝ Polyline mode තෝරන්න.
-  2) Shared boundary → පැරණි boundary එකේ START tap කරන්න.
+  2) Shared boundary → Trace between two points → පැරණි boundary එකේ START tap කරන්න.
   3) එහි END tap කරන්න.
   4) Highlight වූ route එක බලන්න.
   5) Closed polygon එකක Swap side / route මඟින් අනෙක් මාර්ගය බලන්න.
@@ -97,10 +97,38 @@ Junction සහ intersection හරහා route එක යයි. 5 mm ඇතු
 Route එක review කිරීම වැදගත්: road network එකක shortest route එක
 ඔබට අවශ්‍ය parcel boundary එකම විය යුතු නැහැ.
 Source KML / DXF boundary එක කිසිවිටක trace කිරීමෙන් වෙනස් නොවේ.
+
+Shared boundary → Select existing boundaries:
+  • අවශ්‍ය line/polyline එක tap කළ විට එහි මුළු path එක highlight වේ.
+  • Polygon එකේ edge එක tap කළ විට එම edge එක පමණක් තෝරාගනී.
+  • Adjoining boundaries අවශ්‍ය order එකට තෝරන්න; නැවත tap කළොත් deselect වේ.
+  • Add to sketch → selected boundary එක වංගු සහිතවම draft එකට එකතු වේ.
+  • Gaps ඇති තේරීමක් ස්වයංක්‍රීයව bridge නොවේ; adjoining edges තෝරන්න.
+  • Source features වෙනස් නොවේ. Added vertices auto-reduce එකේ fixed වේ.
+
 Draft එකේ අවසාන vertex එකෙන් trace start එක දුර නම් connecting edge එකට ඔබෙන් අසයි.
 
-4. නියමිත extent එකට Subdivision
---------------------------------
+4. Target extent — Auto-reduce සහ Subdivision
+---------------------------------------------
+Auto-reduce on Save default ON ය. Required extent එකට වඩා විශාල polygon එකක්
+Save කළ විට target එකට අඩු කරයි. OSNAP/trace කළ vertices සහ shared boundary එක
+එලෙසම තබා free vertices පමණක් ඇතුළට ගෙන එයි. Reference layer එක hide කළත්
+record කළ shared vertices වෙනස් වෙන්නේ නැහැ.
+Target එකට වඩා කුඩා polygon එකක් ස්වයංක්‍රීයව විශාල කරන්නේ නැහැ.
+Auto-reduce අවශ්‍ය නැති නම් checkbox එක OFF කරන්න; preference එක job එකට save වේ.
+Preview reduce to target මඟින් draft හෝ selected saved parcel එකේ preview එක බලන්න.
+Apply reduction කළ draft එක අවසානයේ Save කරන්න. Saved parcel එකකට apply කළ විට save වේ.
+Undo මඟින් reduce කිරීමට පෙර geometry එක නැවත ලබාගත හැක.
+
+Shared boundary එක නොවෙනස්ව තබා target එකට යා නොහැකි නම් operation එක නවතා
+පණිවිඩයක් පෙන්වයි. මුල් polygon එක වෙනස් නොකරයි. එවිට larger target එකක් හෝ
+Subdivide භාවිත කරන්න. සියලු vertices shared වූ outline එකක් auto-reduce කළ නොහැක.
+Auto-reduce preview එක සරල inward interpolation ක්‍රමයකි; සෑම concave geometry එකකම
+සියලු mathematically possible solutions සොයන optimizer එකක් නොවේ.
+
+Subdivide ක්‍රමය:
+Subdivide button එක auto-reduce එක වෙනුවට මුල් parcel එකට cut line එකක් යොදයි.
+
 අඳින polygon එක Save කරන්න, නැතිනම් Select saved parcel මඟින් polygon එකක් තෝරන්න.
 Required extent එක A / R / P ලෙස දාන්න.
 A සහ R whole numbers; R = 0–3, P = 0–39.99.
@@ -130,7 +158,7 @@ Preview options:
 Shared boundaries subdivision කිරීමේදී scale කරන්නේ නැහැ.
 Target එකට ගෙන ඒමට cut line එක move / rotate වේ.
 Advanced → Scale a free sketch to extent පහසුකම unsnapped, survey-created
-polygon එකකට පමණයි. Imported/traced/snapped boundaries ඇති polygon සඳහා Subdivide භාවිත කරන්න.
+polygon එකකට පමණයි. Shared boundary තබා ගන්න Field → Auto-reduce භාවිත කරන්න; cut එකකට Subdivide භාවිත කරන්න.
 
 5. Edit / Join / Layers
 -----------------------
@@ -149,6 +177,14 @@ Join selected saved boundaries:
 
 Layers:
   KML folders සහ DXF layer names අනුව reference layers සෑදේ.
+  අලුතින් import කරන සෑම file එකකටම වෙනම පාටක් සහ import group එකක් ලැබේ.
+  එකම file එකේ sublayers එකම පාටින් පෙනේ. තවත් DXF/KML file එක වෙනත් පාටකි.
+  File name / layer name list එකේ පෙන්වයි; පාට සහ groups project backup එකේද පවතී.
+  DXF LOTNO / TEXT-LOT / TEXT_LOT layers හි TEXT/MTEXT කුඩා lot labels ලෙස පෙනේ.
+  Label position original DXF insertion/alignment coordinate එකමයි; parcels නැවත center කරන්නේ නැහැ.
+  Lot labels snap nodes ලෙස භාවිත නොවේ. LOTNO layer එකේ Show OFF කළොත් text hide වේ.
+  Imported DXF polygons වල generic DXF-1/area labels hide කර lot-number text පෙන්වයි.
+  Parcel labels සහ lot labels දෙකේම rectangular background masks නැහැ.
   Show, Snap, Protect සහ Export වෙන වෙනම controls.
   Rename සහ Zoom ඇත. අලුත් layers හදන්නත් පුළුවන්.
   Saved features list එකෙන් select/zoom, extent සහ land attributes බලන්න.
@@ -169,7 +205,7 @@ Undo history reload එකෙන් පසු නැවත නොලැබේ. S
 KML export: WGS84 longitude, latitude; folders/layers, polygons, holes, paths,
 points සහ parcel attributes ඇතුළත් වේ.
 DXF export: SLD99 / EPSG:5235 Easting, Northing, metres; closed POLYLINE,
-POINT සහ parcel labels. R2000 ASCII format.
+POINT සහ parcel labels. R2004 ASCII format; layer colours ඇතුළත් වේ.
 CSV: WGS84 + SLD99 coordinates, layer, land fields, vertex source/accuracy සහ area.
 Share project: phone share sheet තිබේ නම් WhatsApp/Gmail වැනි installed apps වෙත
 backup attach කළ හැක. Share sheet නොමැති browser එකක file download වේ.
@@ -182,7 +218,9 @@ Grid area = measured outline එකේ plan area; terrain slope correction න�
 මෙය Sri Lanka field sketch workflow එක සඳහාය.
 
 Phone GPS සහ satellite imagery survey control/RTK වෙනුවට නොවේ.
-Captured GPS accuracy එක record වේ. Poor accuracy වූ single fix සඳහා confirmation එකක් ඇත.
+Captured GPS accuracy එක record වේ.
+Map එකේ live area card එකට යටින් GPS ±accuracy metres දිගටම පෙන්වයි.
+පැරණි fix එකක් නම් “last fix … min ago” ලෙස දක්වයි; actual live fix එකක් ලෙස නොපෙන්වයි. Poor accuracy වූ single fix සඳහා confirmation එකක් ඇත.
 GPS boundary walk එක poor fixes skip කර minimum spacing අනුව vertices ගනී.
 EPSG SLD99↔WGS84 default datum transformation එක භාවිත කරයි.
 එහි published transformation accuracy 14 m ලෙස සඳහන් බැවින්,
@@ -190,7 +228,8 @@ EPSG SLD99↔WGS84 default datum transformation එක භාවිත කරය
 Displayed decimal places physical survey accuracy එක කියන්නේ නැහැ.
 SLD99 grid coordinates re-export කිරීමේදී numerical inverse refinement භාවිත කරයි.
 
-Import DXF: ASCII LINE, POINT, straight LWPOLYLINE / POLYLINE support.
+Import DXF: ASCII LINE, POINT, straight LWPOLYLINE / POLYLINE සහ
+LOTNO/TEXT-LOT layers හි TEXT/MTEXT support.
 ARC, CIRCLE, SPLINE, bulges, INSERT/blocks, meshes, nonstandard extrusion වැනි
 unsupported entities report කර skip කරයි. CAD එකේ අවශ්‍ය නම් straight polylines
 වලට convert/explode කර SLD99 metres වලින් export කරන්න.
@@ -205,9 +244,19 @@ Concave polygon cut එකෙන් disconnected pieces හැදේ නම් c
 KMZ compression, KML network links, curved boundaries support නොවේ.
 Browser background වූ විට phone GPS walk pause විය හැක; screen එක active තබන්න.
 
+Basemap:
+  Default Google Satellite (XYZ) — API key එකක් ඇතුළත් කිරීමට අවශ්‍ය නැහැ.
+  මෙය undocumented/unofficial public tile endpoint එකකි; availability guarantee නැහැ.
+  Initial Google tile loads අසාර්ථක වුවහොත් Esri Satellite fallback වේ.
+  Advanced → Satellite basemap මඟින් Google / Esri මාරු කරන්න.
+  Provider මාරු කිරීමෙන් survey coordinates හෝ areas වෙනස් නොවේ.
+  Google tiles service-worker cache එකේ store කරන්නේ නැහැ.
+  නිල Google Maps Platform API ක්‍රමය වෙනම key/billing අවශ්‍ය service එකකි;
+  එම paid API එක මේ keyless XYZ option එක භාවිත කරන්නේ නැහැ.
+
 Internet ඇති විට app එක මුලින් සම්පූර්ණයෙන් load කරන්න.
 Required app files cache වූ පසු offline app use කළ හැක.
-Imagery සඳහා internet අවශ්‍යය; කලින් බැලූ cached tiles සීමිත ප්‍රමාණයක් පවතී.
+Imagery සඳහා internet අවශ්‍යය; කලින් බැලූ Esri cached tiles සීමිත ප්‍රමාණයක් පවතී.
 Offline imagery availability guarantee කරන්නේ නැහැ.
 Device/browser මාරු කිරීමෙන් jobs ස්වයංක්‍රීයව sync වෙන්නේ නැහැ; backup import කරන්න.
 Local storage full/blocked නම් SAVE FAILED පණිවිඩය පෙන්වයි; වහා backup export කරන්න.
@@ -216,19 +265,23 @@ Local storage full/blocked නම් SAVE FAILED පණිවිඩය පෙන
 8. කළ පරීක්ෂණ සහ field check
 ---------------------------
 Automated checks:
-  13 geometry test groups (parallel/rotation area, shared endpoints, OSNAP,
-     self-crossing rejection, trace junctions, polygon label placement).
-  17 isolated app test groups (draft save/reload, project isolation,
+  18 geometry test groups (parallel/rotation area, shared endpoints, OSNAP,
+     self-crossing rejection, trace junctions, polygon label placement,
+     fixed shared boundaries during reduction, minimum feasible area and exact joins).
+  25 isolated app test groups (draft save/reload, project isolation,
      exact source snapping, imported references, split/undo, edit, join,
-     KML/DXF/CSV export, stale GPS callback and inverse refinement).
+     KML/DXF/CSV export, stale GPS callback and inverse refinement,
+     auto-reduce/undo, selected boundaries, per-file colours, LOTNO positioning,
+     keyless Google fallback and persistent accuracy/stale display).
   4 platform checks (HTML bindings/assets, complete offline shell,
      app-scoped cache cleanup, offline navigation).
   Independent ezdxf export audit: 0 errors, 0 repairs; metre units and vertices verified.
   Independent lxml KML check: XML, namespace, escaped attributes verified.
+  Independent LOTNO DXF check: text/position retained, no spurious point, R2004 colour.
 
 App tests use DOM/Leaflet/coordinate-conversion test doubles, not a real browser.
 They do not establish absolute CRS accuracy or real phone GPS/touch behaviour.
-Real browser rendering, live CDN load, AutoCAD/Google Earth display,
+Real browser rendering, live Google XYZ/CDN tile load, AutoCAD/Google Earth display,
 phone GPS and field accuracy were NOT run in this environment.
 
 Test source is included under tests/.
@@ -245,6 +298,9 @@ Before field use:
   • Known-control KML හා SLD99 DXF import කර එකම corner එකේ alignment බලන්න.
   • Endpoint/nearest/intersection snaps සහ shared-boundary preview බලන්න.
   • Known rectangle එකකට parallel/rotate split කර exported DXF හි extent බලන්න.
+  • OSNAP/shared edge එකක් සහිත parcel එක auto-reduce කර fixed vertices නොවෙනස්ද බලන්න.
+  • DXF files දෙකක් import කර පාට වෙනස සහ original LOTNO text positions බලන්න.
+  • Google/Esri මාරු කර satellite tiles phone එකේ load වේද බලන්න.
   • GPS permission දී accuracy readout සමඟ point එක capture කරන්න.
   • Backup වෙනත් browser/device එකක import කර references/remarks තිබේද බලන්න.
 

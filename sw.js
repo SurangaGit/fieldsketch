@@ -1,9 +1,9 @@
 /* Versioned app shell; never deletes another app's caches or project storage. */
 'use strict';
 const PREFIX = 'fieldsketch:' + self.registration.scope;
-const CACHE = PREFIX + ':v7';
+const CACHE = PREFIX + ':v8';
 const TILES = PREFIX + ':tiles';
-const LOCAL = ['./', './index.html', './app.js?v=7', './geometry.js?v=7', './styles.css?v=7'];
+const LOCAL = ['./', './index.html', './app.js?v=8', './geometry.js?v=8', './styles.css?v=8'];
 const LIBS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
@@ -26,6 +26,8 @@ self.addEventListener('fetch', event => {
     }).catch(async () => (await caches.open(CACHE)).match('./index.html')));
     return;
   }
+  // Unofficial Google XYZ is online-only here; no service-worker tile caching.
+  if (url.hostname.endsWith('.google.com') || url.hostname.endsWith('.googleapis.com')) return;
   const isTile = url.hostname === 'server.arcgisonline.com' && url.pathname.includes('/tile/');
   const isAsset = LOCAL.some(p => new URL(p, self.registration.scope).href === url.href) || LIBS.includes(url.href);
   if (!isTile && !isAsset) return;

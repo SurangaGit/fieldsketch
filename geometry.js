@@ -37,6 +37,25 @@
     if(Math.abs(area(selected)-target)>.02||Math.abs(area(selected)+area(other)-full)>.02)throw Error('Area check failed; choose another line');
     return{selected,other,line:[A,B],angle};
   }
+  // Keep every fixed vertex verbatim. Free runs shrink toward chords connecting
+  // their fixed ends. Area is quadratic in the interpolation parameter.
+  function reduceArea(c,target,fixed=[]){
+    const err=validate(c);if(err)throw Error(err);const full=area(c),sign=Math.sign(signedArea(c));
+    if(!Number.isFinite(target)||target<=.001)throw Error('Enter a positive target extent');
+    if(target>=full-.00001)return{coords:c.map(p=>p.slice()),fixed:c.map((_,i)=>!!fixed[i]),changed:false};
+    const pinned=c.map((_,i)=>i).filter(i=>fixed[i]);if(pinned.length===c.length)throw Error('All boundary vertices are shared / fixed. Use Subdivide; auto-reduce cannot move them.');
+    const anchors=c.map(p=>p.slice());
+    if(!pinned.length){const center=labelPoint(c);anchors.fill(center)}
+    else if(pinned.length===1)anchors.fill(c[pinned[0]]);
+    else for(let k=0;k<pinned.length;k++){const from=pinned[k],to=pinned[(k+1)%pinned.length],run=[from];for(let i=(from+1)%c.length;i!==to;i=(i+1)%c.length)run.push(i);run.push(to);let total=0;for(let j=1;j<run.length;j++)total+=dist(c[run[j-1]],c[run[j]]);let along=0;for(let j=1;j<run.length-1;j++){along+=dist(c[run[j-1]],c[run[j]]);anchors[run[j]]=lerp(c[from],c[to],along/total)}}
+    const at=t=>c.map((p,i)=>fixed[i]?p.slice():lerp(anchors[i],p,t));
+    const zero=sign*signedArea(at(0)),half=sign*signedArea(at(.5)),a=2*(full+zero-2*half),b=full-zero-a,d=zero-target,roots=[];
+    if(Math.abs(a)<1e-9){if(Math.abs(b)>1e-9)roots.push(-d/b)}else{const discriminant=b*b-4*a*d;if(discriminant>=0){const q=Math.sqrt(discriminant);roots.push((-b+q)/(2*a),(-b-q)/(2*a))}}
+    function contained(ring){for(let i=0;i<ring.length;i++){const p=ring[i],q=ring[(i+1)%ring.length];if(!inside(p,c))return false;const ts=[0,1];for(let j=0;j<c.length;j++){const hit=intersection(p,q,c[j],c[(j+1)%c.length]);if(hit)ts.push(Math.max(0,Math.min(1,hit.t)))}ts.sort((a,b)=>a-b);for(let k=1;k<ts.length;k++)if(!inside(lerp(p,q,(ts[k-1]+ts[k])/2),c))return false}return true}
+    for(const t of roots.filter(t=>t>=0&&t<=1).sort((a,b)=>b-a)){const result=at(t);if(!validate(result)&&contained(result)&&Math.abs(area(result)-target)<.001)return{coords:result,fixed:c.map((_,i)=>!!fixed[i]),changed:true}}
+    throw Error('This target cannot be reached safely with the shared boundary fixed. Use Subdivide or a larger target.');
+  }
+  function joinPaths(paths,tolerance=.005){let out=[];for(let i=0;i<paths.length;i++){let part=paths[i].map(p=>p.slice());if(part.length<2)continue;if(!out.length&&paths[i+1]){const next=paths[i+1],ends=[next[0],next.at(-1)];if(Math.min(...ends.map(p=>dist(p,part[0])))<Math.min(...ends.map(p=>dist(p,part.at(-1)))))part.reverse()}if(out.length){if(dist(out.at(-1),part.at(-1))<dist(out.at(-1),part[0]))part.reverse();if(dist(out.at(-1),part[0])>tolerance)throw Error('Selected boundaries are not connected in this order. Select adjoining edges.');part.shift()}out.push(...part)}if(out.length<2)throw Error('Select a boundary first');return out}
   /* Stable specific-object priority; nearest cannot steal an endpoint or intersection. */
   function snap(point,features,options={}){
     const radius=options.radius||26,modes=options.modes||['endpoint','intersection','nearest'],sets={endpoint:[],intersection:[],midpoint:[],perpendicular:[],nearest:[]},segments=[];
@@ -68,5 +87,5 @@
     while(queue.length){queue.sort((a,b)=>b[0]-a[0]);const[d,u]=queue.pop();if(d!==best.get(u))continue;if(u===goal)break;for(const[v,w]of adj[u])if(d+w<(best.get(v)??Infinity)){best.set(v,d+w);prev.set(v,u);queue.push([d+w,v])}}
     if(!best.has(goal))throw Error('Boundaries are not connected. Trace each feature separately; no gaps are auto-joined.');const route=[];for(let u=goal;;u=prev.get(u)){route.push(nodes[u]);if(u===source)break}return route.reverse();
   }
-  return{EPS,PERCH,dist,cross,lerp,length,area,signedArea,arp,nearest,intersection,inside,clean,validate,labelPoint,clip,split,snap,traceRing,traceNetwork};
+  return{EPS,PERCH,dist,cross,lerp,length,area,signedArea,arp,nearest,intersection,inside,clean,validate,labelPoint,clip,split,reduceArea,joinPaths,snap,traceRing,traceNetwork};
 });
